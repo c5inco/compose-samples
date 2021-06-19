@@ -81,6 +81,7 @@ import com.google.accompanist.insets.navigationBarsWithImePadding
 import com.google.accompanist.insets.rememberInsetsPaddingValues
 import com.google.accompanist.insets.statusBarsPadding
 import kotlinx.coroutines.launch
+import kotlin.math.max
 
 /**
  * Entry point for a conversation screen.
@@ -249,7 +250,9 @@ fun Messages(
                         msg = content,
                         isUserMe = content.author == authorMe,
                         isFirstMessageByAuthor = isFirstMessageByAuthor,
-                        isLastMessageByAuthor = isLastMessageByAuthor
+                        isLastMessageByAuthor = isLastMessageByAuthor,
+                        index = index,
+                        scrollState = scrollState
                     )
                 }
             }
@@ -288,7 +291,9 @@ fun Message(
     msg: Message,
     isUserMe: Boolean,
     isFirstMessageByAuthor: Boolean,
-    isLastMessageByAuthor: Boolean
+    isLastMessageByAuthor: Boolean,
+    index: Int,
+    scrollState: LazyListState
 ) {
     val borderColor = if (isUserMe) {
         MaterialTheme.colors.primary
@@ -319,6 +324,8 @@ fun Message(
         }
         AuthorAndTextMessage(
             msg = msg,
+            index = index,
+            scrollState = scrollState,
             isFirstMessageByAuthor = isFirstMessageByAuthor,
             isLastMessageByAuthor = isLastMessageByAuthor,
             authorClicked = onAuthorClick,
@@ -332,6 +339,8 @@ fun Message(
 @Composable
 fun AuthorAndTextMessage(
     msg: Message,
+    index: Int,
+    scrollState: LazyListState,
     isFirstMessageByAuthor: Boolean,
     isLastMessageByAuthor: Boolean,
     authorClicked: (String) -> Unit,
@@ -341,7 +350,7 @@ fun AuthorAndTextMessage(
         if (isLastMessageByAuthor) {
             AuthorNameTimestamp(msg)
         }
-        ChatItemBubble(msg, isFirstMessageByAuthor, authorClicked = authorClicked)
+        ChatItemBubble(msg, index, scrollState, isFirstMessageByAuthor, authorClicked = authorClicked)
         if (isFirstMessageByAuthor) {
             // Last bubble before next author
             Spacer(modifier = Modifier.height(8.dp))
@@ -409,13 +418,30 @@ private fun RowScope.DayHeaderLine() {
 @Composable
 fun ChatItemBubble(
     message: Message,
+    index: Int,
+    scrollState: LazyListState,
     lastMessageByAuthor: Boolean,
     authorClicked: (String) -> Unit
 ) {
+    val visibleItemsInfo = scrollState.layoutInfo.visibleItemsInfo
+    var backgroundAlpha = 0f
+
+    visibleItemsInfo.forEach {
+        if (it.index == index) {
+            backgroundAlpha = max(
+                0f,
+                (it.offset.toDouble() / scrollState.layoutInfo.viewportEndOffset.toDouble()).toFloat()
+            )
+        }
+    }
 
     val backgroundBubbleColor =
         if (MaterialTheme.colors.isLight) {
-            Color(0xFFF5F5F5)
+           if (index % 2 != 0) {
+               Color((255 * backgroundAlpha).toInt(), 28, 207)
+           } else {
+               Color(0xFFF5F5F5)
+           }
         } else {
             MaterialTheme.colors.elevatedSurface(2.dp)
         }
